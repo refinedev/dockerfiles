@@ -1,4 +1,4 @@
-FROM refinedev/node:1.0.0 AS base
+FROM refinedev/node:18 AS base
 
 FROM base AS deps
 
@@ -23,16 +23,6 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm run build
 
-FROM base as production-deps
-
-COPY --from=deps /app/refine/node_modules ./node_modules
-
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
-
-ENV NODE_ENV production
-
-RUN npm prune
-
 FROM base AS runner
 
 ENV NODE_ENV production
@@ -43,10 +33,8 @@ COPY --from=builder /app/refine/public ./public
 RUN mkdir .next
 RUN chown refine:nodejs .next
 
-COPY --from=production-deps --chown=refine:nodejs /app/refine/node_modules ./node_modules
 COPY --from=builder --chown=refine:nodejs /app/refine/.next/standalone ./
 COPY --from=builder --chown=refine:nodejs /app/refine/.next/static ./.next/static
-COPY --from=builder --chown=refine:nodejs /app/refine/package.json ./package.json
 
 USER refine
 

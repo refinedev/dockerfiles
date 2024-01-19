@@ -1,4 +1,4 @@
-FROM refinedev/node:1.0.0 AS base
+FROM refinedev/node:18 AS base
 
 FROM base as deps
 
@@ -13,34 +13,21 @@ RUN \
 
 FROM base as builder
 
+ENV NODE_ENV production
+
 COPY --from=deps /app/refine/node_modules ./node_modules
 
 COPY . .
 
 RUN npm run build
 
-FROM base as production-deps
-
-COPY --from=deps /app/refine/node_modules ./node_modules
-
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+FROM nginx:1.21.3-alpine as runner
 
 ENV NODE_ENV production
 
-RUN npm prune
+COPY --from=builder /app/refine/dist /usr/share/nginx/html
 
-FROM base AS runner
-
-ENV NODE_ENV production
-
-COPY --from=production-deps --chown=refine:nodejs /app/refine/node_modules ./node_modules
-COPY --from=builder --chown=refine:nodejs /app/refine/dist /dist
-COPY --from=builder --chown=refine:nodejs /app/refine/public ./public
-COPY --from=builder --chown=refine:nodejs /app/refine/package.json ./package.json
-
-USER refine
-
-FROM nginx:1.21.3-alpine
+RUN touch /etc/nginx/conf.d/default.conf
 
 RUN <<EOF
 echo "server {" >> /etc/nginx/conf.d/default.conf
@@ -67,9 +54,5 @@ echo "    root   /usr/share/nginx/html;" >> /etc/nginx/conf.d/default.conf
 echo "  }" >> /etc/nginx/conf.d/default.conf
 echo "}" >> /etc/nginx/conf.d/default.conf
 EOF
-
-COPY --from=builder /app/refine/dist /usr/share/nginx/html
-
-EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

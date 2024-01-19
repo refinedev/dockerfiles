@@ -1,4 +1,4 @@
-FROM refinedev/node:1.0.0 AS base
+FROM refinedev/node:18 AS base
 
 FROM base as deps
 
